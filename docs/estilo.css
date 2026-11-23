@@ -384,3 +384,8 @@ h2 {
 .edit {
   font-weight: 600;
 }
+dialog#movimento {width:min(94vw, 36rem);max-height:90vh;overflow:auto;margin:auto}
+#movimento::backdrop {background:#102c3ab0}
+#tipo-mov {font:inherit;padding:.7rem;margin-bottom:1rem}
+#historico {padding-left:1.4rem;max-height:12rem;overflow:auto}
+#historico li {padding:.4rem 0}

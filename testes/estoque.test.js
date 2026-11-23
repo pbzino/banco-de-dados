@@ -25,6 +25,7 @@ before(async () => {
   for (const arquivo of [
     "001_produtos.sql",
     "002_quantidade.sql",
+    "003_movimentacoes.sql",
     "exemplos/01_cadastrar_20_produtos.sql",
   ]) {
     await db.exec(await sql(arquivo));
@@ -48,18 +49,51 @@ test("a carga pode ser repetida e ocupa 20 posições diferentes", async () => {
   assert.deepEqual(rows[0], { itens: 20, posicoes: 20, primeiro: "001" });
 });
 
-test("a quantidade pode chegar a zero e o banco rejeita valores negativos", async () => {
+test("baixa, histórico e repetição da mesma solicitação são atômicos", async () => {
   await comUsuario(dono, async (tx) => {
-    const { rows } = await tx.query(
-      "update produtos set quantidade = 0 where codigo = '001' returning quantidade",
+    const {
+      rows: [item],
+    } = await tx.query("select id from produtos where codigo='001'");
+    const baixar = () =>
+      tx.query("select movimentar($1,'saida',1,null,$2,null) as saldo", [
+        item.id,
+        pedido,
+      ]);
+    const pedido = crypto.randomUUID();
+    assert.equal((await baixar()).rows[0].saldo, 0);
+    assert.equal((await baixar()).rows[0].saldo, 0);
+    assert.equal(
+      (await tx.query("select saldo_anterior,saldo_final from movimentacoes"))
+        .rows.length,
+      1,
     );
-    assert.equal(rows[0].quantidade, 0);
   });
-  await assert.rejects(
+  const mover = (tipo, qtd, motivo, esperado) =>
     comUsuario(dono, (tx) =>
-      tx.exec("update produtos set quantidade = -1 where codigo = '001'"),
-    ),
-    { code: "23514" },
+      tx.query(
+        "select movimentar(id,$1,$2,$3,gen_random_uuid(),$4) from produtos where codigo='001'",
+        [tipo, qtd, motivo, esperado],
+      ),
+    );
+  await assert.rejects(mover("saida", 1, null, null), /Saldo insuficiente/);
+  await assert.rejects(mover("ajuste", 5, " ", 0), /motivo/);
+  await assert.rejects(mover("ajuste", 5, "Contagem", 1), /Saldo alterado/);
+  await mover("entrada", 3, null, null);
+  await mover("ajuste", 2, "Contagem", 3);
+  await assert.rejects(
+    comUsuario(dono, (tx) => tx.exec("update produtos set quantidade=12")),
+    { code: "42501" },
+  );
+  const { rows } = await db.query(
+    "select tipo,saldo_final from movimentacoes order by criado_em",
+  );
+  assert.deepEqual(
+    rows.map((r) => [r.tipo, r.saldo_final]),
+    [
+      ["saida", 0],
+      ["entrada", 3],
+      ["ajuste", 2],
+    ],
   );
 });
 
@@ -68,7 +102,7 @@ test("uma conta só lê e altera os próprios itens", async () => {
   await comUsuario(visitante, async (tx) => {
     assert.equal((await tx.query("select id from produtos")).rows.length, 0);
     assert.equal(
-      (await tx.query("update produtos set quantidade = 9 returning id")).rows
+      (await tx.query("update produtos set nome = 'Outro' returning id")).rows
         .length,
       0,
     );

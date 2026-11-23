@@ -111,6 +111,34 @@
         <button id="recarregar" class="secondary">Atualizar lista</button>
       </section>
     </div>
+    <dialog id="movimento" class="card entry">
+      <h2 id="produto-mov"></h2>
+      <p id="saldo-mov"></p>
+      <form id="operacao">
+        <label for="tipo-mov">Operação</label
+        ><select id="tipo-mov">
+          <option value="entrada">Entrada</option>
+          <option value="saida">Saída</option>
+          <option value="ajuste">Ajuste de inventário</option>
+        </select>
+        <label for="valor-mov" id="rotulo-valor">Unidades</label
+        ><input
+          id="valor-mov"
+          type="number"
+          required
+          step="1"
+          min="1"
+          max="2147483647"
+        />
+        <label for="motivo-mov">Motivo (obrigatório no ajuste)</label
+        ><input id="motivo-mov" maxlength="300" />
+        <button id="registrar" class="primary">Registrar movimentação</button>
+      </form>
+      <p id="aviso-mov" role="status"></p>
+      <h3>Histórico</h3>
+      <ol id="historico"></ol>
+      <button id="fechar-mov" type="button" class="secondary">Fechar</button>
+    </dialog>
   </main>
   <script type="module" src="./estoque.js"></script>
 </html>
