@@ -12,8 +12,9 @@
 <form id="cadastro"><label for="codigo">Código</label><input id="codigo" maxlength="64" required placeholder="Ex. 00125">
 <label for="nome">Nome do produto</label><input id="nome" maxlength="160" required placeholder="Ex. Cabo de rede">
 <label for="localizacao">Localização</label><input id="localizacao" maxlength="160" required placeholder="Ex. Prateleira B2">
+<label for="quantidade">Quantidade</label><input id="quantidade" type="number" min="0" max="2147483647" step="1" value="1" required>
 <button id="salvar" class="primary">Cadastrar produto</button><button type="button" id="cancelar" class="secondary" hidden>Cancelar edição</button></form></section>
 <section class="card catalog"><h2>Produtos cadastrados</h2><div class="search"><input id="busca" type="search" aria-label="Buscar produtos" placeholder="Buscar por código, nome ou localização"></div>
-<div class="tablebox"><table><thead><tr><th>Código</th><th>Produto</th><th>Localização</th><th>Ações</th></tr></thead><tbody id="lista"></tbody></table></div><p id="vazio"></p><button id="recarregar" class="secondary">Atualizar lista</button></section></div>
+<div class="tablebox"><table><thead><tr><th>Código</th><th>Produto</th><th>Localização</th><th>Quantidade</th><th>Ações</th></tr></thead><tbody id="lista"></tbody></table></div><p id="vazio"></p><button id="recarregar" class="secondary">Atualizar lista</button></section></div>
 <p id="mensagem" role="status" aria-live="polite"></p></main>
 <script type="module" src="./estoque.js"></script></html>

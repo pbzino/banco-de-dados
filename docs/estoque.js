@@ -21,12 +21,14 @@ function mostrarLista() {
   for (const item of encontrados) {
     const linha = el("lista").insertRow();
     for (const campo of campos) linha.insertCell().textContent = item[campo];
+    linha.insertCell().textContent = item.quantidade;
     const editar = document.createElement("button");
     editar.className = "edit";
     editar.textContent = "Editar";
     editar.setAttribute("aria-label", "Editar " + item.nome);
     editar.onclick = () => {
       emEdicao = item.id;
+      el("quantidade").value = item.quantidade;
       for (const campo of campos) el(campo).value = item[campo];
       el("titulo").textContent = "Editar produto";
       el("salvar").textContent = "Salvar alterações";
@@ -45,7 +47,7 @@ async function carregar() {
   try {
     let inicio = 0;
     while (true) {
-      const {data, error} = await banco.from("produtos").select("id,codigo,nome,localizacao")
+      const {data, error} = await banco.from("produtos").select("id,codigo,nome,localizacao,quantidade")
         .order("id").range(inicio, inicio + pagina - 1);
       if (atual !== consulta) return;
       if (error) throw error;
@@ -100,6 +102,7 @@ el("cadastro").onsubmit = async e => {
   e.preventDefault();
   if (el("salvar").disabled) return;
   const dados = Object.fromEntries(campos.map(c => [c, el(c).value.trim()]));
+  dados.quantidade = el("quantidade").valueAsNumber;
   const dono = usuario;
   el("salvar").disabled = true;
   try {
