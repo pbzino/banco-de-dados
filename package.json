@@ -1,0 +1,7 @@
+{
+  "name": "almox-estoque",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test testes/*.test.js" },
+  "devDependencies": { "@electric-sql/pglite": "0.6.0" }
+}
