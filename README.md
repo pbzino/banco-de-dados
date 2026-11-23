@@ -33,3 +33,11 @@ select codigo, nome, localizacao, quantidade
 from public.produtos
 order by nome, codigo;
 ```
+
+## Scripts de exemplo
+
+Abra o SQL Editor do projeto para executar os arquivos. O banco hospedado já contém os 20 produtos de exemplo.
+
+- [Cadastrar os 20 produtos](sql/exemplos/01_cadastrar_20_produtos.sql) distribui dez itens em cada prateleira, com quantidade inicial de uma unidade.
+- [Consultar o estoque](sql/exemplos/02_consultas.sql) lista produtos, busca por código ou nome, filtra uma prateleira e soma as unidades.
+- [Alterar o estoque](sql/exemplos/03_alteracoes.sql) permite testar contagem física, entrada, saída e troca de localização. Cada bloco termina com ROLLBACK para desfazer o teste.
