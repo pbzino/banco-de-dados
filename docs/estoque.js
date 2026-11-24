@@ -31,6 +31,7 @@ function novo() {
 }
 
 function mostrarLista() {
+  if (usuario && demo) void atualizarAtividade();
   el("total-produtos").textContent = itens.length;
   el("total-unidades").textContent = itens.reduce(
     (total, item) => total + item.quantidade,
@@ -61,8 +62,12 @@ function mostrarLista() {
     };
     const mover = document.createElement("button");
     mover.className = "edit";
-    mover.textContent = "Movimentar";
+    mover.textContent = "Entrada";
     mover.onclick = () => abrirMovimento(item);
+    const saida = document.createElement("button");
+    saida.className = "edit";
+    saida.textContent = "Saída";
+    saida.onclick = () => abrirMovimento(item, "saida");
     const apagar = document.createElement("button");
     apagar.className = "edit";
     apagar.textContent = "Apagar";
@@ -82,7 +87,7 @@ function mostrarLista() {
       } catch (erro) { informar(erro.message); }
       finally { apagar.disabled = false; }
     };
-    linha.insertCell().append(editar, mover, apagar);
+    linha.insertCell().append(editar, mover, saida, apagar);
   }
   el("vazio").textContent = encontrados.length
     ? ""
@@ -110,6 +115,7 @@ async function carregar() {
       inicio += pagina;
     }
     itens = registros;
+    void atualizarAtividade();
     mostrarLista();
   } catch {
     if (atual === consulta)
@@ -121,6 +127,8 @@ function trocarSessao(sessao) {
   const id = sessao?.user.id ?? null;
   if (usuario === id) return;
   usuario = id;
+  el("atividade").hidden = !id;
+  el("recentes").replaceChildren();
   if (el("movimento").open) el("movimento").close();
   consulta++;
   itens = [];
@@ -246,6 +254,45 @@ let produtoMov, pedido;
 const historicoDemo = [];
 const tipos = { entrada: "Entrada", saida: "Saída", ajuste: "Ajuste" };
 
+
+function descrever(tipo, quantidade, nome, saldo) {
+  if (tipo === "ajuste") return nome + " · Saldo ajustado para " + saldo + ".";
+  const unidade = quantidade === 1 ? " unidade" : " unidades";
+  return tipos[tipo] + " de " + quantidade + unidade + " de " + nome + " · Saldo: " + saldo + ".";
+}
+let versaoAtividade = 0;
+async function atualizarAtividade() {
+  const versao = ++versaoAtividade, conta = usuario;
+  const lista = el("recentes");
+  let registros;
+  try {
+    if (demo) {
+      registros = historicoDemo.filter(m => itens.some(p => p.id === m.produto_id)).slice(0, 5)
+        .map(m => ({...m, produtos: itens.find(p => p.id === m.produto_id)}));
+    } else {
+      const {data,error} = await banco.from("movimentacoes")
+        .select("tipo,quantidade,saldo_final,criado_em,produtos(nome)")
+        .order("criado_em",{ascending:false}).limit(5);
+      if (error) throw error;
+      registros = data;
+    }
+    if (conta !== usuario || versao !== versaoAtividade) return;
+    lista.replaceChildren();
+    for (const m of registros) {
+      const li = document.createElement("li");
+      li.textContent = new Date(m.criado_em).toLocaleString("pt-BR") + " · " +
+        descrever(m.tipo, m.quantidade, m.produtos?.nome ?? "produto", m.saldo_final);
+      lista.append(li);
+    }
+    if (!registros.length) lista.textContent = "Nenhuma movimentação registrada.";
+  } catch {
+    if (conta === usuario && versao === versaoAtividade) lista.textContent = "Falha ao carregar as movimentações.";
+  }
+}
+setInterval(() => {
+  if (usuario && !demo && !document.hidden) void atualizarAtividade();
+}, 30000);
+
 async function listarHistorico(item) {
   const lista = el("historico");
   lista.replaceChildren();
@@ -291,10 +338,11 @@ function configurarOperacao() {
   el("valor-mov").min = ajuste ? "0" : "1";
   el("motivo-mov").required = ajuste;
 }
-function abrirMovimento(item) {
+function abrirMovimento(item, tipoInicial = "entrada") {
   produtoMov = item;
   pedido = crypto.randomUUID();
   el("operacao").reset();
+  el("tipo-mov").value = tipoInicial;
   configurarOperacao();
   el("produto-mov").textContent = item.codigo + " · " + item.nome;
   el("saldo-mov").textContent = "Saldo atual: " + item.quantidade;
@@ -318,6 +366,7 @@ el("operacao").onsubmit = async (e) => {
     qtd = el("valor-mov").valueAsNumber;
   const motivo = el("motivo-mov").value.trim();
   const sessao = usuario;
+  let saldoRegistrado;
   if (tipo === "ajuste" && !motivo) {
     el("aviso-mov").textContent = "Informe o motivo do ajuste.";
     return;
@@ -330,6 +379,7 @@ el("operacao").onsubmit = async (e) => {
         tipo === "ajuste" ? qtd : antes + (tipo === "entrada" ? qtd : -qtd);
       if (saldo < 0) throw Error("Saldo insuficiente.");
       if (saldo > 2147483647) throw Error("Saldo acima do limite.");
+      saldoRegistrado = saldo;
       item.quantidade = saldo;
       historicoDemo.unshift({
         produto_id: item.id,
@@ -343,7 +393,7 @@ el("operacao").onsubmit = async (e) => {
       });
       mostrarLista();
     } else {
-      const { error } = await banco.rpc("movimentar", {
+      const { data, error } = await banco.rpc("movimentar", {
         p_produto: item.id,
         p_tipo: tipo,
         p_quantidade: qtd,
@@ -352,11 +402,12 @@ el("operacao").onsubmit = async (e) => {
         p_saldo_esperado: item.quantidade,
       });
       if (error) throw Error(error.message);
+      saldoRegistrado = data;
       if (usuario !== sessao) return;
       await carregar();
     }
     el("movimento").close();
-    informar("Movimentação registrada.");
+    informar(descrever(tipo, qtd, item.nome, saldoRegistrado));
   } catch (erro) {
     el("aviso-mov").textContent = erro.message;
   } finally {
