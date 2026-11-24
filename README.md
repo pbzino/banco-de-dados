@@ -45,7 +45,7 @@ Os [testes de integração](testes/estoque.test.js) aplicam as migrações reais
 
 ## Executar a aplicação com PostgreSQL
 
-1. Em um projeto próprio do Supabase, execute [001_produtos.sql](sql/001_produtos.sql) e, em ordem, [002_quantidade.sql](sql/002_quantidade.sql) e [003_movimentacoes.sql](sql/003_movimentacoes.sql) no SQL Editor.
+1. Em um projeto próprio do Supabase, execute [001_produtos.sql](sql/001_produtos.sql) e, em ordem, [002_quantidade.sql](sql/002_quantidade.sql) [003_movimentacoes.sql](sql/003_movimentacoes.sql) e [004_editar_apagar.sql](sql/004_editar_apagar.sql) no SQL Editor.
 2. Crie e confirme um usuário em **Authentication → Users**. Para restringir o cadastro de novas contas, ajuste as opções de autenticação do projeto.
 3. Configure a URL do seu projeto e a chave **publicável** em [docs/config.js](docs/config.js). A senha do banco e as chaves administrativas devem ficar fora do navegador e do repositório.
 4. Na raiz, execute `python -m http.server 8000 --directory docs`, abra **http://localhost:8000** e entre com o usuário criado. Opcionalmente, após criar a conta, execute o script de carga para começar com os 20 exemplos.
@@ -55,3 +55,5 @@ Para hospedar a interface no GitHub Pages, selecione a branch principal e a past
 ## Movimentar um produto
 
 Clique em **Movimentar** na linha do produto. Use **Entrada** para receber unidades, **Saída** para retirar e **Ajuste de inventário** para informar o saldo contado e o motivo. O diálogo mostra as últimas 50 movimentações na base online. A função PostgreSQL bloqueia a linha do produto enquanto valida o saldo, atualiza a quantidade e grava o histórico na mesma transação. Cada solicitação usa um UUID para evitar duplicação em uma repetição. O modelo de contas continua individual.
+
+Em **Editar**, mudanças de quantidade exigem motivo e geram ajuste no histórico. **Apagar** exige confirmação e remove o cadastro e suas movimentações.

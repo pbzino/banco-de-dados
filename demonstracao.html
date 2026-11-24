@@ -619,7 +619,7 @@ function mostrarLista() {
     editar.setAttribute("aria-label", "Editar " + item.nome);
     editar.onclick = () => {
       emEdicao = item;
-      el("quantidade").disabled = true;
+      el("quantidade").disabled = false;
       el("quantidade").value = item.quantidade;
       for (const campo of campos) el(campo).value = item[campo];
       el("titulo").textContent = "Editar produto";
@@ -631,7 +631,26 @@ function mostrarLista() {
     mover.className = "edit";
     mover.textContent = "Movimentar";
     mover.onclick = () => abrirMovimento(item);
-    linha.insertCell().append(editar, mover);
+    const apagar = document.createElement("button");
+    apagar.className = "edit";
+    apagar.textContent = "Apagar";
+    apagar.onclick = async () => {
+      if (!window.confirm("Apagar " + item.codigo + " · " + item.nome + " e todo o histórico deste produto? Essa ação é definitiva.")) return;
+      apagar.disabled = true;
+      try {
+        if (demo) itens = itens.filter(p => p.id !== item.id);
+        else {
+          const { data, error } = await banco.from("produtos").delete().eq("id",item.id).select("id").single();
+          if (error || !data) throw Error("Falha ao apagar. Atualize a lista e tente novamente.");
+          await carregar();
+        }
+        if (emEdicao?.id === item.id) novo();
+        mostrarLista();
+        informar("Produto apagado.");
+      } catch (erro) { informar(erro.message); }
+      finally { apagar.disabled = false; }
+    };
+    linha.insertCell().append(editar, mover, apagar);
   }
   el("vazio").textContent = encontrados.length
     ? ""
@@ -722,10 +741,15 @@ el("cadastro").onsubmit = async (e) => {
   e.preventDefault();
   if (el("salvar").disabled) return;
   const dados = Object.fromEntries(campos.map((c) => [c, el(c).value.trim()]));
-  if (!emEdicao) dados.quantidade = el("quantidade").valueAsNumber;
+  dados.quantidade = el("quantidade").valueAsNumber;
   if (campos.some((campo) => !dados[campo])) {
     informar("Preencha código, nome e localização.");
     return;
+  }
+  let motivo = null;
+  if (emEdicao && dados.quantidade !== emEdicao.quantidade) {
+    motivo = window.prompt("Qual o motivo do ajuste de quantidade?")?.trim();
+    if (!motivo) { informar("Informe um motivo para salvar o ajuste."); return; }
   }
   if (demo) {
     const duplicado = itens.some(
@@ -737,7 +761,11 @@ el("cadastro").onsubmit = async (e) => {
       informar("Este código já está cadastrado.");
       return;
     }
-    if (emEdicao) Object.assign(emEdicao, dados);
+    if (emEdicao) {
+      if (motivo) historicoDemo.unshift({produto_id:emEdicao.id, tipo:"ajuste", quantidade:dados.quantidade,
+        saldo_anterior:emEdicao.quantidade, saldo_final:dados.quantidade, motivo, criado_em:new Date(), responsavel:usuario});
+      Object.assign(emEdicao, dados);
+    }
     else itens.unshift({ id: crypto.randomUUID(), ...dados });
     novo();
     el("busca").value = "";
@@ -750,16 +778,17 @@ el("cadastro").onsubmit = async (e) => {
   try {
     const tabela = banco.from("produtos");
     // Só grava se o registro continuar igual ao que foi aberto no formulário.
-    const op = emEdicao
-      ? tabela.update(dados).match(emEdicao)
-      : tabela.insert(dados);
-    const { data, error } = await op.select("id").maybeSingle();
+    const {data, error} = emEdicao
+      ? await banco.rpc("editar_produto", {p_id:emEdicao.id, p_original:emEdicao,
+          p_codigo:dados.codigo, p_nome:dados.nome, p_localizacao:dados.localizacao,
+          p_quantidade:dados.quantidade, p_motivo:motivo})
+      : await tabela.insert(dados).select("id").single();
     if (usuario !== dono) return;
     if (error) {
       informar(
         error.code === "23505"
           ? "Este código já está cadastrado."
-          : "Falha ao salvar. Confira os campos e tente novamente.",
+          : error.message,
       );
       return;
     }
